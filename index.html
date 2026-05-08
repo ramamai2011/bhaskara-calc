@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bhaskara — Calculadora</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f6f5f0;
+      --card:     #ffffff;
+      --border:   #e5e3dc;
+      --text:     #1a1a18;
+      --muted:    #888880;
+      --faint:    #c8c7c1;
+      --accent:   #1a1a18;
+      --green-bg: #eaf5ec; --green-fg: #2a7a38;
+      --amber-bg: #fef6e4; --amber-fg: #a06a00;
+      --red-bg:   #fdecea; --red-fg:   #b33030;
+      --blue-bg:  #e8f0fe; --blue-fg:  #1a56c4;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    h1 { font-size: 20px; font-weight: 500; }
+    h2 { font-size: 14px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); text-transform: uppercase; margin-bottom: 1rem; }
+
+    .page {
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    .top-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 1.75rem;
+    }
+
+    .top-header p {
+      font-size: 13px;
+      font-family: var(--mono);
+      color: var(--faint);
+    }
+
+    /* ---- CARD ---- */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ---- INPUTS ---- */
+    .inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 16px;
+      font-family: var(--mono);
+      font-weight: 500;
+      color: var(--text);
+      background: #f9f8f5;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      -moz-appearance: textfield;
+    }
+    .field input::-webkit-outer-spin-button,
+    .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .field input::placeholder { color: var(--faint); font-weight: 400; }
+    .field input:focus { border-color: #aaa9a3; background: #fff; }
+
+    /* ---- EQUATION PREVIEW ---- */
+    #eq-preview {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      min-height: 18px;
+      margin-bottom: 1rem;
+      transition: color 0.2s;
+    }
+
+    /* ---- BUTTONS ---- */
+    .btn-row { display: flex; gap: 8px; }
+
+    .btn {
+      flex: 1;
+      padding: 10px;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary { background: var(--text); color: #fff; }
+    .btn-primary:hover { background: #333330; }
+
+    .btn-ghost {
+      background: #f0efe9;
+      color: var(--muted);
+    }
+    .btn-ghost:hover { background: var(--border); color: var(--text); }
+
+    /* ---- DIVIDER ---- */
+    hr { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+    /* ---- META ROWS ---- */
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0efe9;
+      font-size: 13px;
+    }
+    .meta-row:last-child { border-bottom: none; }
+    .meta-row .lbl { color: var(--muted); }
+    .meta-row .val { font-family: var(--mono); font-weight: 500; }
+
+    /* ---- FORMULA BOX ---- */
+    .formula-box {
+      background: #f9f8f5;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      margin: 1rem 0;
+    }
+    .formula-box .flabel { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+    .formula-box .ftext  { font-size: 13px; font-family: var(--mono); color: #4a4a48; }
+
+    /* ---- ROOTS ---- */
+    .roots-grid { display: grid; gap: 10px; margin-top: 1rem; }
+    .roots-grid.two { grid-template-columns: 1fr 1fr; }
+    .roots-grid.one { grid-template-columns: 1fr; }
+
+    .root-card {
+      background: #f9f8f5;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem;
+      text-align: center;
+    }
+    .root-card .rlabel { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+    .root-card .rval { font-size: 24px; font-weight: 500; font-family: var(--mono); color: var(--text); }
+    .root-card .rval.complex { font-size: 16px; }
+
+    /* ---- BADGE ---- */
+    .badge {
+      display: block;
+      margin-top: 1rem;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+    }
+    .badge.pos { background: var(--green-bg); color: var(--green-fg); }
+    .badge.zer { background: var(--amber-bg); color: var(--amber-fg); }
+    .badge.neg { background: var(--red-bg);   color: var(--red-fg);   }
+
+    /* ---- STEPS ---- */
+    .steps-list { list-style: none; counter-reset: steps; }
+    .steps-list li {
+      counter-increment: steps;
+      display: flex;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0efe9;
+      font-size: 13px;
+      align-items: flex-start;
+    }
+    .steps-list li:last-child { border-bottom: none; }
+    .steps-list li::before {
+      content: counter(steps);
+      min-width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--text);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .steps-list li .step-math {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ---- CHART ---- */
+    .chart-wrap {
+      position: relative;
+      height: 240px;
+    }
+
+    /* ---- VERIFY ---- */
+    .verify-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .verify-row .field { flex: 1; }
+    .verify-row button { flex-shrink: 0; padding: 10px 16px; }
+
+    #verify-result {
+      margin-top: 10px;
+      font-size: 13px;
+      font-family: var(--mono);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      display: none;
+    }
+    #verify-result.ok  { background: var(--green-bg); color: var(--green-fg); }
+    #verify-result.err { background: var(--red-bg);   color: var(--red-fg);   }
+    #verify-result.warn{ background: var(--amber-bg); color: var(--amber-fg); }
+
+    /* ---- HISTORY ---- */
+    #history-list { list-style: none; }
+    #history-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0efe9;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-radius: 4px;
+      padding: 8px 6px;
+    }
+    #history-list li:last-child { border-bottom: none; }
+    #history-list li:hover { background: #f9f8f5; }
+    #history-list li .heq { font-family: var(--mono); color: var(--text); }
+    #history-list li .hroots { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+    /* ---- SHARE ---- */
+    .share-row {
+      display: flex;
+      gap: 8px;
+    }
+    #share-url {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: var(--mono);
+      background: #f9f8f5;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      outline: none;
+    }
+    #copy-feedback {
+      font-size: 12px;
+      color: var(--green-fg);
+      margin-top: 6px;
+      min-height: 16px;
+      display: none;
+    }
+
+    /* ---- TOAST ---- */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--text);
+      color: #fff;
+      font-size: 13px;
+      padding: 8px 18px;
+      border-radius: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ---- ERROR ---- */
+    .error-msg { font-size: 13px; color: var(--red-fg); text-align: center; padding: 6px 0; }
+
+    /* ---- SECTION TOGGLE ---- */
+    .section-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 0;
+    }
+    .section-toggle h2 { margin-bottom: 0; }
+    .toggle-icon { font-size: 18px; color: var(--faint); transition: transform 0.2s; }
+    .toggle-icon.open { transform: rotate(180deg); }
+    .collapsible { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+    .collapsible.open { max-height: 2000px; }
+    .card .collapsible { margin-top: 1rem; }
+
+    /* ---- HIDDEN ---- */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="top-header">
+    <h1>Bhaskara</h1>
+    <p>ax² + bx + c = 0</p>
+  </div>
+
+  <!-- INPUT CARD -->
+  <div class="card">
+    <div class="inputs">
+      <div class="field">
+        <label for="coefA">a</label>
+        <input type="number" id="coefA" placeholder="1" oninput="updatePreview()" />
+      </div>
+      <div class="field">
+        <label for="coefB">b</label>
+        <input type="number" id="coefB" placeholder="−5" oninput="updatePreview()" />
+      </div>
+      <div class="field">
+        <label for="coefC">c</label>
+        <input type="number" id="coefC" placeholder="6" oninput="updatePreview()" />
+      </div>
+    </div>
+
+    <div id="eq-preview">—</div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="calcular()">Calcular raíces</button>
+      <button class="btn btn-ghost" onclick="limpiar()">Limpiar</button>
+    </div>
+  </div>
+
+  <!-- RESULT SECTION -->
+  <div id="result-section" class="hidden">
+
+    <!-- RESULT CARD -->
+    <div class="card" id="result-card">
+      <div class="meta-row"><span class="lbl">Discriminante &nbsp;Δ = b² − 4ac</span><span class="val" id="disc-val"></span></div>
+      <div class="formula-box">
+        <p class="flabel">Fórmula aplicada</p>
+        <p class="ftext" id="formula-text"></p>
+      </div>
+      <div id="raices-container"></div>
+      <div id="tipo-badge"></div>
+    </div>
+
+    <!-- PARABOLA CARD -->
+    <div class="card">
+      <div class="section-toggle" onclick="toggleSection('graph')">
+        <h2>Gráfica de la parábola</h2>
+        <span class="toggle-icon open" id="graph-icon">▾</span>
+      </div>
+      <div class="collapsible open" id="graph-body">
+        <div class="chart-wrap"><canvas id="parabolaChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- STEPS CARD -->
+    <div class="card">
+      <div class="section-toggle" onclick="toggleSection('steps')">
+        <h2>Paso a paso</h2>
+        <span class="toggle-icon open" id="steps-icon">▾</span>
+      </div>
+      <div class="collapsible open" id="steps-body">
+        <ul class="steps-list" id="steps-list"></ul>
+      </div>
+    </div>
+
+    <!-- VERIFY CARD -->
+    <div class="card">
+      <div class="section-toggle" onclick="toggleSection('verify')">
+        <h2>Verificar una raíz</h2>
+        <span class="toggle-icon" id="verify-icon">▾</span>
+      </div>
+      <div class="collapsible" id="verify-body">
+        <div class="verify-row">
+          <div class="field">
+            <label for="verifyInput">Valor de x</label>
+            <input type="number" id="verifyInput" placeholder="ej: 3" />
+          </div>
+          <button class="btn btn-primary" onclick="verificar()">Verificar</button>
+        </div>
+        <div id="verify-result"></div>
+      </div>
+    </div>
+
+    <!-- SHARE CARD -->
+    <div class="card">
+      <div class="section-toggle" onclick="toggleSection('share')">
+        <h2>Compartir</h2>
+        <span class="toggle-icon" id="share-icon">▾</span>
+      </div>
+      <div class="collapsible" id="share-body">
+        <p style="font-size:13px; color:var(--muted); margin-bottom:10px;">Compartí este cálculo con su URL — al abrirla se cargan los coeficientes automáticamente.</p>
+        <div class="share-row">
+          <input type="text" id="share-url" readonly />
+          <button class="btn btn-ghost" onclick="copyUrl()" style="flex-shrink:0; padding:10px 16px; font-size:13px;">Copiar</button>
+        </div>
+        <p id="copy-feedback">¡Copiado!</p>
+      </div>
+    </div>
+
+  </div><!-- /result-section -->
+
+  <!-- HISTORY CARD -->
+  <div class="card" id="history-card" style="display:none;">
+    <div class="section-toggle" onclick="toggleSection('history')">
+      <h2>Historial</h2>
+      <span class="toggle-icon open" id="history-icon">▾</span>
+    </div>
+    <div class="collapsible open" id="history-body">
+      <ul id="history-list"></ul>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<div id="toast"></div>
+
+<script>
+  // ─── STATE ───────────────────────────────────────
+  let history = [];
+  let chart = null;
+  let lastA, lastB, lastC;
+
+  // ─── LOAD FROM URL ───────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const p = new URLSearchParams(location.search);
+    if (p.has('a') && p.has('b') && p.has('c')) {
+      document.getElementById('coefA').value = p.get('a');
+      document.getElementById('coefB').value = p.get('b');
+      document.getElementById('coefC').value = p.get('c');
+      updatePreview();
+      calcular();
+    }
+  });
+
+  // ─── EQUATION PREVIEW ────────────────────────────
+  function updatePreview() {
+    const a = parseFloat(document.getElementById('coefA').value);
+    const b = parseFloat(document.getElementById('coefB').value);
+    const c = parseFloat(document.getElementById('coefC').value);
+    const el = document.getElementById('eq-preview');
+    if (isNaN(a) && isNaN(b) && isNaN(c)) { el.textContent = '—'; return; }
+    let s = '';
+    if (!isNaN(a)) s += (a === 1 ? '' : a === -1 ? '−' : fmt(a)) + 'x²';
+    if (!isNaN(b)) {
+      if (b >= 0) s += (s ? ' + ' : '') + (b === 1 ? '' : b) + 'x';
+      else        s += ' − ' + (b === -1 ? '' : Math.abs(b)) + 'x';
+    }
+    if (!isNaN(c)) {
+      if (c >= 0) s += (s ? ' + ' : '') + c;
+      else        s += ' − ' + Math.abs(c);
+    }
+    el.textContent = s ? s + ' = 0' : '—';
+  }
+
+  function fmt(n) { return n < 0 ? '(' + n + ')' : '' + n; }
+  function r6(n)  { return parseFloat(n.toFixed(6)); }
+  function r4(n)  { return parseFloat(n.toFixed(4)); }
+
+  // ─── MAIN CALC ───────────────────────────────────
+  function calcular() {
+    const a = parseFloat(document.getElementById('coefA').value);
+    const b = parseFloat(document.getElementById('coefB').value);
+    const c = parseFloat(document.getElementById('coefC').value);
+
+    const raizEl  = document.getElementById('raices-container');
+    const discEl  = document.getElementById('disc-val');
+    const formEl  = document.getElementById('formula-text');
+    const badgeEl = document.getElementById('tipo-badge');
+    const stepsEl = document.getElementById('steps-list');
+
+    document.getElementById('result-section').classList.remove('hidden');
+    raizEl.innerHTML = ''; badgeEl.innerHTML = ''; stepsEl.innerHTML = '';
+    document.getElementById('verify-result').style.display = 'none';
+    document.getElementById('verifyInput').value = '';
+
+    if (isNaN(a) || isNaN(b) || isNaN(c)) {
+      raizEl.innerHTML = '<p class="error-msg">Completá los tres coeficientes.</p>';
+      discEl.textContent = '—'; formEl.textContent = '—'; return;
+    }
+    if (a === 0) {
+      raizEl.innerHTML = '<p class="error-msg">El coeficiente <strong>a</strong> no puede ser 0.</p>';
+      discEl.textContent = '—'; formEl.textContent = '—'; return;
+    }
+
+    lastA = a; lastB = b; lastC = c;
+    const delta = b * b - 4 * a * c;
+
+    discEl.textContent = r6(delta);
+    formEl.textContent = `x = (−(${b}) ± √(${b}² − 4·${a}·${c})) / (2·${a})`;
+
+    // — roots —
+    let x1, x2, rootsStr;
+    if (delta > 0) {
+      x1 = r6((-b + Math.sqrt(delta)) / (2 * a));
+      x2 = r6((-b - Math.sqrt(delta)) / (2 * a));
+      raizEl.innerHTML = `<div class="roots-grid two">
+        <div class="root-card"><p class="rlabel">x₁</p><p class="rval">${x1}</p></div>
+        <div class="root-card"><p class="rlabel">x₂</p><p class="rval">${x2}</p></div>
+      </div>`;
+      badgeEl.innerHTML = '<span class="badge pos">Δ &gt; 0 — dos raíces reales y distintas</span>';
+      rootsStr = `x₁=${x1}, x₂=${x2}`;
+    } else if (delta === 0) {
+      x1 = x2 = r6(-b / (2 * a));
+      raizEl.innerHTML = `<div class="roots-grid one">
+        <div class="root-card"><p class="rlabel">x₁ = x₂  raíz doble</p><p class="rval">${x1}</p></div>
+      </div>`;
+      badgeEl.innerHTML = '<span class="badge zer">Δ = 0 — raíz real doble</span>';
+      rootsStr = `x = ${x1}`;
+    } else {
+      const re = r6(-b / (2 * a));
+      const im = r6(Math.sqrt(-delta) / (2 * a));
+      x1 = null; x2 = null;
+      raizEl.innerHTML = `<div class="roots-grid two">
+        <div class="root-card"><p class="rlabel">x₁</p><p class="rval complex">${re} + ${im}i</p></div>
+        <div class="root-card"><p class="rlabel">x₂</p><p class="rval complex">${re} − ${im}i</p></div>
+      </div>`;
+      badgeEl.innerHTML = '<span class="badge neg">Δ &lt; 0 — raíces complejas</span>';
+      rootsStr = `x₁=${re}+${im}i, x₂=${re}−${im}i`;
+    }
+
+    // — steps —
+    buildSteps(a, b, c, delta);
+
+    // — graph —
+    drawChart(a, b, c, delta, x1, x2);
+
+    // — share URL —
+    const url = new URL(location.href.split('?')[0]);
+    url.searchParams.set('a', a);
+    url.searchParams.set('b', b);
+    url.searchParams.set('c', c);
+    document.getElementById('share-url').value = url.toString();
+
+    // — history —
+    addHistory(a, b, c, rootsStr);
+  }
+
+  // ─── STEPS ───────────────────────────────────────
+  function buildSteps(a, b, c, delta) {
+    const el = document.getElementById('steps-list');
+    const steps = [
+      {
+        title: 'Identificar los coeficientes',
+        math: `a = ${a},  b = ${b},  c = ${c}`
+      },
+      {
+        title: 'Calcular el discriminante',
+        math: `Δ = b² − 4ac = (${b})² − 4·(${a})·(${c}) = ${b*b} − ${4*a*c} = ${r6(delta)}`
+      },
+      {
+        title: delta > 0
+          ? 'Δ > 0: la ecuación tiene dos raíces reales distintas'
+          : delta === 0
+          ? 'Δ = 0: la ecuación tiene una raíz real doble'
+          : 'Δ < 0: la ecuación tiene dos raíces complejas conjugadas',
+        math: delta >= 0
+          ? `√Δ = √${r6(delta)} = ${r6(Math.sqrt(Math.abs(delta)))}`
+          : `√|Δ| = √${r6(-delta)} = ${r6(Math.sqrt(-delta))} → parte imaginaria`
+      },
+      {
+        title: 'Aplicar la fórmula',
+        math: `x = (−(${b}) ± √(${r6(delta)})) / (2·${a}) = (${-b} ± ${r6(Math.sqrt(Math.abs(delta)))}) / ${2*a}`
+      },
+    ];
+
+    if (delta > 0) {
+      const x1 = r6((-b + Math.sqrt(delta)) / (2 * a));
+      const x2 = r6((-b - Math.sqrt(delta)) / (2 * a));
+      steps.push({ title: 'Calcular x₁', math: `x₁ = (${-b} + ${r6(Math.sqrt(delta))}) / ${2*a} = ${-b + r6(Math.sqrt(delta))} / ${2*a} = ${x1}` });
+      steps.push({ title: 'Calcular x₂', math: `x₂ = (${-b} − ${r6(Math.sqrt(delta))}) / ${2*a} = ${-b - r6(Math.sqrt(delta))} / ${2*a} = ${x2}` });
+    } else if (delta === 0) {
+      const x = r6(-b / (2 * a));
+      steps.push({ title: 'Calcular la raíz doble', math: `x = −b / (2a) = ${-b} / ${2*a} = ${x}` });
+    } else {
+      const re = r6(-b / (2*a));
+      const im = r6(Math.sqrt(-delta) / (2*a));
+      steps.push({ title: 'Parte real e imaginaria', math: `Re = ${-b}/${2*a} = ${re};   Im = √${r6(-delta)}/${2*a} = ${im}` });
+    }
+
+    el.innerHTML = steps.map(s => `
+      <li>
+        <div>
+          <div>${s.title}</div>
+          <div class="step-math">${s.math}</div>
+        </div>
+      </li>`).join('');
+  }
+
+  // ─── CHART ───────────────────────────────────────
+  function drawChart(a, b, c, delta, x1, x2) {
+    const vertex = -b / (2 * a);
+    const spread = Math.max(4, Math.abs(x1 ?? vertex) + 3, Math.abs(x2 ?? vertex) + 3);
+    const xMin = vertex - spread;
+    const xMax = vertex + spread;
+    const points = 120;
+    const xs = [], ys = [];
+    for (let i = 0; i <= points; i++) {
+      const x = xMin + (xMax - xMin) * i / points;
+      xs.push(r4(x));
+      ys.push(r4(a * x * x + b * x + c));
+    }
+
+    if (chart) { chart.destroy(); chart = null; }
+
+    const ctx = document.getElementById('parabolaChart').getContext('2d');
+
+    const rootPoints = [];
+    if (x1 !== null && x2 !== null && delta >= 0) {
+      rootPoints.push({ x: x1, y: 0 });
+      if (delta > 0) rootPoints.push({ x: x2, y: 0 });
+    }
+    const vertexY = r4(a * vertex * vertex + b * vertex + c);
+
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: xs,
+        datasets: [
+          {
+            label: 'f(x)',
+            data: ys,
+            borderColor: '#1a1a18',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: false,
+          },
+          {
+            label: 'Raíces',
+            data: rootPoints.map(p => ({ x: p.x, y: 0 })),
+            parsing: false,
+            borderColor: 'transparent',
+            backgroundColor: '#2a7a38',
+            pointRadius: 6,
+            pointHoverRadius: 7,
+            showLine: false,
+            type: 'scatter',
+          },
+          {
+            label: 'Vértice',
+            data: [{ x: r4(vertex), y: vertexY }],
+            parsing: false,
+            borderColor: 'transparent',
+            backgroundColor: '#1a56c4',
+            pointRadius: 6,
+            pointHoverRadius: 7,
+            showLine: false,
+            type: 'scatter',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => `x = ${items[0].label}`,
+              label: items => `f(x) = ${items[0].formattedValue}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'category',
+            ticks: {
+              font: { family: "'DM Mono', monospace", size: 11 },
+              color: '#aaa9a3',
+              maxTicksLimit: 8,
+              callback: (v, i) => xs[i] % 1 === 0 ? xs[i] : ''
+            },
+            grid: { color: '#f0efe9' },
+            border: { color: '#e5e3dc' }
+          },
+          y: {
+            ticks: {
+              font: { family: "'DM Mono', monospace", size: 11 },
+              color: '#aaa9a3',
+              maxTicksLimit: 6,
+            },
+            grid: { color: '#f0efe9' },
+            border: { color: '#e5e3dc' }
+          }
+        }
+      }
+    });
+  }
+
+  // ─── VERIFY ──────────────────────────────────────
+  function verificar() {
+    const x = parseFloat(document.getElementById('verifyInput').value);
+    const el = document.getElementById('verify-result');
+    el.style.display = 'block';
+    if (isNaN(x)) {
+      el.className = 'warn';
+      el.textContent = 'Ingresá un valor numérico.';
+      return;
+    }
+    if (lastA === undefined) {
+      el.className = 'warn'; el.textContent = 'Calculá primero.'; return;
+    }
+    const result = lastA * x * x + lastB * x + lastC;
+    const rounded = r6(result);
+    if (Math.abs(result) < 1e-9) {
+      el.className = 'ok';
+      el.textContent = `✓  f(${x}) = ${rounded} — ¡Es raíz de la ecuación!`;
+    } else {
+      el.className = 'err';
+      el.textContent = `✗  f(${x}) = ${rounded} ≠ 0 — No es raíz.`;
+    }
+  }
+
+  // ─── SHARE / COPY ────────────────────────────────
+  function copyUrl() {
+    const input = document.getElementById('share-url');
+    input.select(); input.setSelectionRange(0, 999);
+    navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
+    const fb = document.getElementById('copy-feedback');
+    fb.style.display = 'block';
+    setTimeout(() => fb.style.display = 'none', 2000);
+  }
+
+  // ─── HISTORY ─────────────────────────────────────
+  function addHistory(a, b, c, rootsStr) {
+    history.unshift({ a, b, c, rootsStr });
+    if (history.length > 8) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const card = document.getElementById('history-card');
+    const list = document.getElementById('history-list');
+    card.style.display = history.length ? 'block' : 'none';
+    list.innerHTML = history.map((h, i) => `
+      <li onclick="loadHistory(${i})">
+        <span class="heq">${eqStr(h.a, h.b, h.c)}</span>
+        <span class="hroots">${h.rootsStr}</span>
+      </li>`).join('');
+  }
+
+  function loadHistory(i) {
+    const h = history[i];
+    document.getElementById('coefA').value = h.a;
+    document.getElementById('coefB').value = h.b;
+    document.getElementById('coefC').value = h.c;
+    updatePreview();
+    calcular();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function eqStr(a, b, c) {
+    let s = (a === 1 ? '' : a === -1 ? '−' : a) + 'x²';
+    if (b >= 0) s += ' + ' + (b === 1 ? '' : b) + 'x';
+    else        s += ' − ' + (b === -1 ? '' : Math.abs(b)) + 'x';
+    if (c >= 0) s += ' + ' + c;
+    else        s += ' − ' + Math.abs(c);
+    return s + ' = 0';
+  }
+
+  // ─── SECTION TOGGLE ──────────────────────────────
+  function toggleSection(id) {
+    const body = document.getElementById(id + '-body');
+    const icon = document.getElementById(id + '-icon');
+    body.classList.toggle('open');
+    icon.classList.toggle('open');
+  }
+
+  // ─── LIMPIAR ─────────────────────────────────────
+  function limpiar() {
+    ['coefA','coefB','coefC'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('eq-preview').textContent = '—';
+    document.getElementById('result-section').classList.add('hidden');
+    if (chart) { chart.destroy(); chart = null; }
+  }
+
+  // ─── ENTER KEY ───────────────────────────────────
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') calcular(); });
+</script>
+</body>
+</html>
+
+///aaa
